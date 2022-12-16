@@ -3,7 +3,7 @@
 __author__     = "Sam Milstead"
 __copyright__  = "Copyright 2022 (C) Cisco TAC"
 __credits__    = "Sam Milstead"
-__version__    = "1.0.0"
+__version__    = "1.0.1"
 __maintainer__ = "Sam Milstead"
 __email__      = "smilstea@cisco.com"
 __status__     = "alpha"
@@ -17,13 +17,14 @@ import re
 def task():
 	###__author__     = "Sam Milstead"
 	###__copyright__  = "Copyright 2022 (C) Cisco TAC"
-	###__version__    = "1.0.0"
+	###__version__    = "1.0.1"
 	###__status__     = "alpha"
 	###command line handling, OS / file handling, SSH/telnet calls
 	key = 1
 	is_error = False
 	ssh = False
 	memcompare = False
+	config = False
 	file = ''
 	ipv4_addr = ''
 	username = ''
@@ -60,8 +61,13 @@ def task():
 			del sys.argv[index]
 			break
 	for index, arg in enumerate(sys.argv):
-		if arg in ['--memcompare'] and len(sys.argv) > index + 1:
+		if arg in ['--memcompare']:
 			memcompare = True
+			del sys.argv[index]
+			break
+	for index, arg in enumerate(sys.argv):
+		if arg in ['--config']:
+			config = True
 			del sys.argv[index]
 			break
 	for index, arg in enumerate(sys.argv):
@@ -80,6 +86,7 @@ def task():
 		if arg in ['--help', '-h']:
 			print("Usage: python3 {" + sys.argv[0] + "} [--file <filename>][--ipv4addr <ipv4 address>][--username <username>](--ssh)(--timeout <seconds>)")
 			print("Usage: python3 {" + sys.argv[0] + "} [--memcompare][--pre <filename>][--post <filename>]")
+			print("Usage: python3 {" + sys.argv[0] + "} [--config][--file <filename>]")
 			print("\n")
 			print("""Current Working Modules:
 			| 1 L2VPN
@@ -93,6 +100,7 @@ def task():
 			| 5 High CPU
 			
 			| Memory Leak Comparison Tool
+			| Scale Configuration Tool
 
 ------------------------------------------------------------
 
@@ -112,6 +120,7 @@ Work In Progress:
 		print(str(sys.argv))
 		print("Usage: python3 {" + sys.argv[0] + "} [--file <filename>][--ipv4addr <ipv4 address>][--username <username>](--ssh)(--timeout <seconds>)")
 		print("Usage: python3 {" + sys.argv[0] + "} [--memcompare][--pre <filename>][--post <filename>]")
+		print("Usage: python3 {" + sys.argv[0] + "} [--config][--file <filename>]")
 		print("\n")
 		print("""Current Working Modules:
 			| 1 L2VPN
@@ -125,6 +134,7 @@ Work In Progress:
 			| 5 High CPU
 			
 			| Memory Leak Comparison Tool
+			| Scale Configuration Tool
 
 ------------------------------------------------------------
 
@@ -144,6 +154,12 @@ Work In Progress:
 				print("Post Filename: " + post_file)
 			else:
 				print("Please use --post and select a filename")
+				return
+		elif config == True:
+			if file:
+				print("Configuration file: " + file)
+			else:
+				print("Please use --file and select a filename")
 				return
 		else:
 			if file:
@@ -167,20 +183,20 @@ Work In Progress:
 					return
 				print("Timeout of command gathering set to " + str(timeout))
 	if memcompare == True:
-		pre = open(pre_file, "r")
-		xr_type = ''
-		for line in pre:
-			if '/opt/cisco/XR/packages/' in line:
-				xr_type = 'eXR'
-		if xr_type == '':
-			xr_type = 'cXR'
-		pre.close()
-		if xr_type == 'cXR':
-			finaloutput = memoryheapcomparisoncxr(pre_file, post_file)
-		elif xr_type == 'eXR':
-			finaloutput = memoryheapcomparisonexr(pre_file, post_file)
-		print("Memory comparison results if any with difference +1M or higher:")
-		print(finaloutput)
+		option = input("Which type of XR OS are you using?\n" +
+		"1 cXR/32-bit\n" + "2 eXR/XR7/64-bit\n" + "Please enter number: ")
+		if option == '1':
+			print("Memory comparison results if any with difference +1M or higher or a new/deleted PC address:")
+			memoryheapcomparisoncxr(pre_file, post_file)
+		elif option == '2':
+			print("Memory comparison results if any with difference +1M or higher or a new/deleted PC address:")
+			memoryheapcomparisonexr(pre_file, post_file)
+		else:
+			print("Please enter a valid option")
+			return
+		return
+	if config == True:
+		Scale_Configurator(file)
 		return
 	if ipv4_addr and username:
 		if os.path.isfile(filename):
@@ -765,91 +781,392 @@ def telnetconnect(ipv4_addr, username, password, outfile, timeout):
 			print("No high CPU found")
 	connection.close()
 	outfile.close()
+class DictDiffer(object):
+	"""
+	Calculate the difference between two dictionaries as:
+	(1) items added
+	(2) items removed
+	(3) keys same in both but changed values
+	(4) keys same in both and unchanged values
+	"""
+	def __init__(self, current_dict, past_dict):
+		self.current_dict, self.past_dict = current_dict, past_dict
+		self.set_current, self.set_past = set(current_dict.keys()), set(past_dict.keys())
+		self.intersect = self.set_current.intersection(self.set_past)
+	def added(self):
+		return self.set_current - self.intersect 
+	def removed(self):
+		return self.set_past - self.intersect 
+	def changed(self):
+		return set(o for o in self.intersect if self.past_dict[o] != self.current_dict[o])
+	def unchanged(self):
+		return set(o for o in self.intersect if self.past_dict[o] == self.current_dict[o])
+def get_changes(the_diffs, my_set, my_set2 = None):
+	###__author__     = "Sam Milstead"
+	###__copyright__  = "Copyright 2020 (C) Cisco TAC"
+	###__version__    = "1.0.1"
+	###__status__     = "alpha"
+	#Here we need to see if we have a dictionary inside of a dictionary
+	#or a flat dictionary and then check for diffs
+	diff_info = []
+	if not the_diffs:
+		diff_info.append('None\n')
+	elif not my_set2:
+		for entry in the_diffs:
+			diff_info.append("{}: ".format(entry))
+			try:
+				for key, value in my_set[entry].items():
+					try:
+						diff_info.append("'{}: {}' ".format(key, value))
+					except Exception as e:
+						pass
+			except Exception as e:
+				diff_info.append(str(my_set[entry]) + " ")
+	else:
+		for entry in the_diffs:
+			diff_info.append("\nBefore:\n {}: ".format(entry))
+			try:
+				for key, value in my_set[entry].items():
+					value3 = my_set[entry][key]
+					try:
+						value2 = my_set2[entry][key]
+						if value2 != value3:
+							diff_info.append("'{}: {}' ".format(key, value))
+					except Exception as e:
+						diff_info.append("'{}: {}' ".format(key, value))
+			except Exception as e:
+				diff_info.append(str(my_set[entry]) + " ")
+			diff_info.append("\nAfter:\n {}: ".format(entry))
+			try:
+				for key, value in my_set2[entry].items():
+					value3 = my_set2[entry][key]
+					try:
+						value2=my_set[entry][key]
+						if value2 != value3:
+							diff_info.append("'{}: {}' ".format(key, value))
+					except Exception as e:
+						diff_info.append("'{}: {}' ".format(key, value))
+			except Exception as e:
+				diff_info.append(str(my_set2[entry]) + " ")
+	return diff_info
 def memoryheapcomparisoncxr(pre_file, post_file):
 	###__author__     = "Sam Milstead"
 	###__copyright__  = "Copyright 2022 (C) Cisco TAC"
-	###__version__    = "1.0.0"
-	###__status__     = "alpha"
+	###__version__    = "1.0.1"
+	###__status__     = "maintenance"
 	#calculate any memory changes 1M+ in cXR
-	pre = open(pre_file, "r")
-	post = open(post_file, "r")
 	regexp = re.compile(r"(0x[\da-f]+)\s(0x[\da-f]+)\s(0x[\da-f]+)\s(.*)")
-	comparison1 = []
-	for line in pre:
-		match = regexp.match(line)
-		if match:
-			comparison1.append("Total: {:5d} Mbytes, Count: {:8d}, Name: {}".format(int(match.group(2), 16) // (1024*1024), int(match.group(3), 16), match.group(4)) + "\n")
-	comparison2 = []
-	for line in post:
-		match = regexp.match(line)
-		if match:
-			comparison2.append("Total: {:5d} Mbytes, Count: {:8d}, Name: {}".format(int(match.group(2), 16) // (1024*1024), int(match.group(3), 16), match.group(4)) + "\n")
-	output = []
-	regexp2 = re.compile(r"Total: \s+(\d+) Mbytes,.*Name: (.+)")
-	for comp1 in comparison1:
-		match1 = regexp2.search(comp1)
-		if match1:
-			pre_match_name = match1.group(2)
-			pre_match_size = match1.group(1)
-			for comp2 in comparison2:
-				match2 = regexp2.search(comp2)
-				if match2:
-					post_match_name = match2.group(2)
-					post_match_size = match2.group(1)
-					if pre_match_name == post_match_name:
-						if int(pre_match_size) != int(post_match_size):
-							output.append("pre memory: " + comp1)
-							output.append("post memory: " + comp2)
-							break
-	final_output = ""
-	for item in output:
-		final_output += item
-	pre.close()
-	post.close()
-	return final_output
+	dict1 = {}
+	with open(pre_file) as f:
+		for line in f:
+			match = regexp.match(line)
+			if match:
+				dict1[match.group(4)] = int(match.group(2), 16) // (1024*1024)
+	dict2 = {}
+	with open(post_file) as f:
+		for line in f:
+			match = regexp.match(line)
+			if match:
+				dict2[match.group(4)] = int(match.group(2), 16) // (1024*1024)
+	the_diffs = DictDiffer(dict2, dict1)
+	print("PC Address and Fuction Name                   Size in MB\n")
+	print('\nThe following items were added:\n')
+	added = (get_changes(the_diffs.added(), dict2))
+	j =0
+	for i in added:
+		if j == 1:
+			print(temp + i)
+			j = 0
+		else:
+			j = 1
+			temp = i
+	print('\nThe following items were deleted:\n')
+	deleted = (get_changes(the_diffs.removed(), dict1))
+	j =0
+	for i in deleted:
+		if j == 1:
+			print(temp + i)
+			j = 0
+		else:
+			j = 1
+			temp = i
+	print("\nThe changed items were:\n")
+	changed = (get_changes(the_diffs.changed(), dict1, dict2))
+	j =0
+	for i in changed:
+		if j == 1:
+			print(temp + i)
+			j = 0
+		else:
+			j = 1
+			temp = i
+	return
 def memoryheapcomparisonexr(pre_file, post_file):
 	###__author__     = "Sam Milstead"
 	###__copyright__  = "Copyright 2022 (C) Cisco TAC"
-	###__version__    = "1.0.0"
-	###__status__     = "alpha"
+	###__version__    = "1.0.1"
+	###__status__     = "maintenance"
 	#calculate any memory changes 1M+ in eXR/XR7
-	pre = open(pre_file, "r")
-	post = open(post_file, "r")
 	regexp = re.compile(r"(0x[\da-f]+)\s+(\d+)\s+(\d+)\s(.*)")
-	print("Please be patient, eXR and XR7 can take several minutes to return results compared to cXR")
-	comparison1 = []
-	for line in pre:
-		match = regexp.match(line)
-		if match:
-			comparison1.append("Total: {:5d} Mbytes, Name: {}".format(int(match.group(3)) // (1024*1024), match.group(4)) + "\n")
-	comparison2 = []
-	for line in post:
-		match = regexp.match(line)
-		if match:
-			comparison2.append("Total: {:5d} Mbytes, Name: {}".format(int(match.group(3)) // (1024*1024), match.group(4)) + "\n")
-	output = []
-	regexp2 = re.compile(r"Total: \s+(\d+) Mbytes, Name: (.+)")
-	for comp1 in comparison1:
-		match1 = regexp2.search(comp1)
-		if match1:
-			pre_match_name = match1.group(2)
-			pre_match_size = match1.group(1)
-			for comp2 in comparison2:
-				match2 = regexp2.search(comp2)
-				if match2:
-					post_match_name = match2.group(2)
-					post_match_size = match2.group(1)
-					if pre_match_name == post_match_name:
-						if int(pre_match_size) != int(post_match_size):
-							output.append("pre memory: " + comp1)
-							output.append("post memory: " + comp2)
-						break
-	final_output = ""
-	for item in output:
-		final_output += item
-	pre.close()
-	post.close()
-	return final_output
+	dict1 = {}
+	with open(pre_file) as f:
+		for line in f:
+			match = regexp.match(line)
+			if match:
+				dict1[match.group(1) + ' ' + match.group(4)] = int(match.group(3)) // (1024 * 1024)
+	dict2 = {}
+	with open(post_file) as f:
+		for line in f:
+			match = regexp.match(line)
+			if match:
+				dict2[match.group(1) + ' ' + match.group(4)] = int(match.group(3)) // (1024 * 1024)
+	the_diffs = DictDiffer(dict2, dict1)
+	print("PC Address and Fuction Name                   Size in MB\n")
+	print('\nThe following items were added:\n')
+	added = (get_changes(the_diffs.added(), dict2))
+	j =0
+	for i in added:
+		if j == 1:
+			print(temp + i)
+			j = 0
+		else:
+			j = 1
+			temp = i
+	print('\nThe following items were deleted:\n')
+	deleted = (get_changes(the_diffs.removed(), dict1))
+	j =0
+	for i in deleted:
+		if j == 1:
+			print(temp + i)
+			j = 0
+		else:
+			j = 1
+			temp = i
+	print("\nThe changed items were:\n")
+	changed = (get_changes(the_diffs.changed(), dict1, dict2))
+	j =0
+	for i in changed:
+		if j == 1:
+			print(temp + i)
+			j = 0
+		else:
+			j = 1
+			temp = i
+	return     
+def Scale_Configurator(file):
+	###__author__     = "Sam Milstead"
+	###__copyright__  = "Copyright 2022 (C) Cisco TAC"
+	###__version__    = "1.0.1"
+	###__status__     = "alpha"
+	#generate configuration file
+	"""This script is designed to generate scale configurations.
+		
+		1. For numbers
+		Ranges such as [10-50] will automatically increment by 1.
+		For a different multiplier use a ',' such as [10-50,5].
+		
+		2. For hex
+		Ranges such as {0-a} or {0-A} will automatically increment by 1.
+		For a different multiplier use a ',' such as {0-A,5}.
+		Case insensitive
+		
+		3. For letters
+		Ranges such as (a-g) or (A-G) will automatically increment by 1.
+		For a different multiplier use a ',' such as (a-g,5).
+		Case sensitive
+		
+		Returns:
+		- Scale config to terminal.
+
+		###Example###
+		Example Times to Run: 3
+
+		Example File:
+		interface GigabitEthernet0/0/0/13.[1-200] l2transport
+		 vrf vrf(a-e,3)
+		 encapsulation dot1Q [1-200] second-dot1q [30-35,3] exact
+		 ipv6 address 2001::{0-f,7}/26
+		 no shut
+		!
+
+		Example Output:
+		interface GigabitEthernet0/0/0/13.1 l2transport
+		 vrf vrfa
+		 encapsulation dot1Q 1 second-dot1q 30 exact
+		 ipv6 address 2001::0/26
+		 no shut
+		!
+		interface GigabitEthernet0/0/0/13.2 l2transport
+		 vrf vrfd
+		 encapsulation dot1Q 2 second-dot1q 33 exact
+		 ipv6 address 2001::7/26
+		 no shut
+		!
+		interface GigabitEthernet0/0/0/13.3 l2transport
+		 vrf vrfb
+		 encapsulation dot1Q 3 second-dot1q 30 exact
+		 ipv6 address 2001::E/26
+		 no shut
+		!
+		"""
+	option = int(input("How many times would you like to iterate through the configuration\n" + "Please enter number: "))
+	if option < 1:
+		print("Enter a valid number of times to run")
+		return
+	else:
+		timestorun = option
+	with open(file, "r") as myfile:
+		textarea = myfile.read()
+	# Call the function to do the parsing
+	parse(textarea, timestorun)
+def parse(textarea, timestorun):
+	###__author__     = "Sam Milstead"
+	###__copyright__  = "Copyright 2022 (C) Cisco TAC"
+	###__version__    = "1.0.1"
+	###__status__     = "alpha"
+	"""
+		Create the finaloutput list, parse line by line for the number of times specified
+		and return final output
+				##################################################
+				#initalsplit is used to split the string into two#
+				#list values before the '[' and after '['        #
+				##################################################
+					##############################################
+					#From the second part of this array we set   #
+					#bracketsandend to give us the value inside  #
+					#the []s and then the outer string as [1]    #
+					##############################################
+						###################################################
+						#Next we need to do one more split. This allows us#
+						#to get the value before the - and the value after#
+						###################################################
+							#########################################################
+							#Finally we check if there is a ',' and split this again#
+							#so that bracket[1] is changed to increment[0] for      #
+							#the end value and increment[1] for the x value         #
+							#########################################################
+	"""
+	x = 0
+	# This is where all the magic happens
+	while (x < timestorun):
+		# Parse line by line
+		for line in textarea.split("\n"):
+			# Check if any manipulation needs to be done
+			if "[" and "]" in line:
+				parse_numbers(line, x)
+			elif "{" and "}" in line:
+				parse_hex(line, x)
+			elif "(" and ")" in line:
+				parse_letters(line, x)
+			else:
+				print(line)
+		x += 1
+	return
+def parse_numbers(line, x):
+	###__author__     = "Sam Milstead"
+	###__copyright__  = "Copyright 2022 (C) Cisco TAC"
+	###__version__    = "1.0.1"
+	###__status__     = "alpha"
+	"""
+	This is for incrementing base 10
+	"""
+	increment = 1
+	regex_int_double = re.compile('(.*)\[(\d+)-(\d+)(,(\d+))?\](.*)(\[(\d+)-(\d+)(,(\d+))?\](.*))')
+	regex_int = re.compile('(.*)\[(\d+)-(\d+)(,(\d+))?\](.*)')
+	match2 = regex_int_double.search(line)
+	match = regex_int.search(line)
+	if match2:
+		substring = []
+		substring.append(match2.group(1))
+		substring.append(match2.group(6))
+		substring.append(match2.group(12))
+		if match2.group(5):
+			increment = int(match2.group(5))
+		temp = int(match2.group(2))+(x*increment)
+		while temp > int(match2.group(3)):
+			temp += int(match2.group(2)) - int(match2.group(3)) -1
+		temp1 = temp
+		if match2.group(11):
+			increment = int(match2.group(11))
+		temp = int(match2.group(8))+(x*increment)
+		while temp > int(match2.group(9)):
+			temp += int(match2.group(8)) - int(match2.group(9)) -1
+		temp2 = temp
+		outputstring = str(substring[0]) + str(temp1) + str(substring[1]) + str(temp2) + str(substring[2])
+	elif match:
+		substring = []
+		substring.append(match.group(1))
+		substring.append(match.group(6))
+		if match.group(5):
+			increment = int(match.group(5))
+		temp = int(match.group(2))+(x*increment)
+		while temp > int(match.group(3)):
+			temp += int(match.group(2)) - int(match.group(3)) -1
+		outputstring = str(substring[0]) + str(temp) + str(substring[1])
+	else:
+		print('not able to find valid integers for processing')
+		return
+	print(outputstring)
+	return
+def parse_hex(line, x):
+	###__author__     = "Sam Milstead"
+	###__copyright__  = "Copyright 2022 (C) Cisco TAC"
+	###__version__    = "1.0.1"
+	###__status__     = "alpha"
+	"""
+	This is for incrementing in hex
+	"""
+	increment = 1
+	regex_hex = re.compile('(.*)\{([0-9a-fA-F]+)-([0-9a-fA-F]+)(,(\d+))?\}(.*)')
+	match = regex_hex.search(line)
+	if match:
+		substring = []
+		substring.append(match.group(1))
+		substring.append(match.group(6))
+		if match.group(5):
+			increment = int(match.group(5))
+		starthex = int(match.group(2), 16)
+		endhex = int(match.group(3), 16)
+		temp = starthex +(x*increment)
+		while temp > endhex:
+			temp += starthex - endhex - 1
+		temp = '{:X}'.format(temp)
+		outputstring = str(substring[0]) + str(temp) + str(substring[1])
+	else:
+		print('not able to find valid hex for processing')
+		return
+	print(outputstring)
+	return
+def parse_letters(line, x):
+	###__author__     = "Sam Milstead"
+	###__copyright__  = "Copyright 2022 (C) Cisco TAC"
+	###__version__    = "1.0.1"
+	###__status__     = "alpha"
+	"""
+	This is for incrementing letters, we must use the ASCII
+	representation to do this
+	"""
+	increment = 1
+	regex_letter = re.compile('(.*)\(([a-zA-Z]+)-([a-zA-Z]+)(,(\d+))?\)(.*)')
+	match = regex_letter.search(line)
+	if match:
+		substring = []
+		substring.append(match.group(1))
+		substring.append(match.group(6))
+		if match.group(5):
+			increment = int(match.group(5))
+		startletter = ord(match.group(2))
+		endletter = ord(match.group(3))
+		temp = startletter +(x*increment)
+		while temp > endletter:
+			temp += startletter - endletter - 1
+		temp = str(chr(temp))
+		outputstring = str(substring[0]) + str(temp) + str(substring[1])
+	else:
+		print('not able to find valid letter for processing')
+		return
+	print(outputstring)
+	return
 def l2vpn():
 	###__author__     = "Sam Milstead"
 	###__copyright__  = "Copyright 2022 (C) Cisco TAC"
