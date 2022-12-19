@@ -956,7 +956,7 @@ def memoryheapcomparisonexr(pre_file, post_file):
 def Scale_Configurator(file):
 	###__author__     = "Sam Milstead"
 	###__copyright__  = "Copyright 2022 (C) Cisco TAC"
-	###__version__    = "1.0.1"
+	###__version__    = "1.0.2"
 	###__status__     = "alpha"
 	#generate configuration file
 	"""This script is designed to generate scale configurations.
@@ -1022,7 +1022,7 @@ def Scale_Configurator(file):
 def parse(textarea, timestorun):
 	###__author__     = "Sam Milstead"
 	###__copyright__  = "Copyright 2022 (C) Cisco TAC"
-	###__version__    = "1.0.1"
+	###__version__    = "1.0.2"
 	###__status__     = "alpha"
 	"""
 		Create the finaloutput list, parse line by line for the number of times specified
@@ -1053,120 +1053,81 @@ def parse(textarea, timestorun):
 		for line in textarea.split("\n"):
 			# Check if any manipulation needs to be done
 			if "[" and "]" in line:
-				parse_numbers(line, x)
-			elif "{" and "}" in line:
-				parse_hex(line, x)
-			elif "(" and ")" in line:
-				parse_letters(line, x)
-			else:
-				print(line)
+				line = parse_numbers(line, x)
+			if "{" and "}" in line:
+				line = parse_hex(line, x)
+			if "(" and ")" in line:
+				line = parse_letters(line, x)
+			print(line)
 		x += 1
 	return
 def parse_numbers(line, x):
 	###__author__     = "Sam Milstead"
 	###__copyright__  = "Copyright 2022 (C) Cisco TAC"
-	###__version__    = "1.0.1"
+	###__version__    = "1.0.2"
 	###__status__     = "alpha"
 	"""
 	This is for incrementing base 10
 	"""
 	increment = 1
-	regex_int_double = re.compile('(.*)\[(\d+)-(\d+)(,(\d+))?\](.*)(\[(\d+)-(\d+)(,(\d+))?\](.*))')
-	regex_int = re.compile('(.*)\[(\d+)-(\d+)(,(\d+))?\](.*)')
-	match2 = regex_int_double.search(line)
-	match = regex_int.search(line)
-	if match2:
-		substring = []
-		substring.append(match2.group(1))
-		substring.append(match2.group(6))
-		substring.append(match2.group(12))
-		if match2.group(5):
-			increment = int(match2.group(5))
+	regex_int = re.compile('\[\d+-\d+,?\d+?\]')
+	match = re.findall(regex_int, line)
+	for i in match:
+		match2 = re.search(r'(\[(\d+)-(\d+),?(\d+)?\])',line)
+		if match2.group(4):
+			increment = int(match2.group(4))
 		temp = int(match2.group(2))+(x*increment)
 		while temp > int(match2.group(3)):
 			temp += int(match2.group(2)) - int(match2.group(3)) -1
-		temp1 = temp
-		if match2.group(11):
-			increment = int(match2.group(11))
-		temp = int(match2.group(8))+(x*increment)
-		while temp > int(match2.group(9)):
-			temp += int(match2.group(8)) - int(match2.group(9)) -1
-		temp2 = temp
-		outputstring = str(substring[0]) + str(temp1) + str(substring[1]) + str(temp2) + str(substring[2])
-	elif match:
-		substring = []
-		substring.append(match.group(1))
-		substring.append(match.group(6))
-		if match.group(5):
-			increment = int(match.group(5))
-		temp = int(match.group(2))+(x*increment)
-		while temp > int(match.group(3)):
-			temp += int(match.group(2)) - int(match.group(3)) -1
-		outputstring = str(substring[0]) + str(temp) + str(substring[1])
-	else:
-		print('not able to find valid integers for processing')
-		return
-	print(outputstring)
-	return
+		line = re.sub('(\[(\d+)-(\d+),?(\d+)?\])', str(temp), str(line), count=1)
+	return line
 def parse_hex(line, x):
 	###__author__     = "Sam Milstead"
 	###__copyright__  = "Copyright 2022 (C) Cisco TAC"
-	###__version__    = "1.0.1"
+	###__version__    = "1.0.2"
 	###__status__     = "alpha"
 	"""
 	This is for incrementing in hex
 	"""
 	increment = 1
-	regex_hex = re.compile('(.*)\{([0-9a-fA-F]+)-([0-9a-fA-F]+)(,(\d+))?\}(.*)')
-	match = regex_hex.search(line)
-	if match:
-		substring = []
-		substring.append(match.group(1))
-		substring.append(match.group(6))
-		if match.group(5):
-			increment = int(match.group(5))
-		starthex = int(match.group(2), 16)
-		endhex = int(match.group(3), 16)
+	regex_hex = re.compile('\{[0-9a-fA-F]+-[0-9a-fA-F]+,?\d+?\}')
+	match = re.findall(regex_hex, line)
+	for i in match:
+		match2 = re.search(r'(\{([0-9a-fA-F])+-([0-9a-fA-F])+,?(\d+)?\})', line)
+		if match2.group(4):
+			increment = int(match2.group(4))
+		starthex = int(match2.group(2), 16)
+		endhex = int(match2.group(3), 16)
 		temp = starthex +(x*increment)
 		while temp > endhex:
 			temp += starthex - endhex - 1
 		temp = '{:X}'.format(temp)
-		outputstring = str(substring[0]) + str(temp) + str(substring[1])
-	else:
-		print('not able to find valid hex for processing')
-		return
-	print(outputstring)
-	return
+		line = re.sub('(\{([0-9a-fA-F])+-([0-9a-fA-F])+,?(\d+)?\})', str(temp), str(line), count=1)
+	return line
 def parse_letters(line, x):
 	###__author__     = "Sam Milstead"
 	###__copyright__  = "Copyright 2022 (C) Cisco TAC"
-	###__version__    = "1.0.1"
+	###__version__    = "1.0.2"
 	###__status__     = "alpha"
 	"""
 	This is for incrementing letters, we must use the ASCII
 	representation to do this
 	"""
 	increment = 1
-	regex_letter = re.compile('(.*)\(([a-zA-Z]+)-([a-zA-Z]+)(,(\d+))?\)(.*)')
-	match = regex_letter.search(line)
-	if match:
-		substring = []
-		substring.append(match.group(1))
-		substring.append(match.group(6))
-		if match.group(5):
-			increment = int(match.group(5))
-		startletter = ord(match.group(2))
-		endletter = ord(match.group(3))
+	regex_letter = re.compile('\([a-zA-Z]+-[a-zA-Z]+,?\d+?\)')
+	match = re.findall(regex_letter, line)
+	for i in match:
+		match2 = re.search(r'(\(([a-zA-Z])+-([a-zA-Z])+,?(\d+)?\))', line)
+		startletter = ord(match2.group(2))
+		endletter = ord(match2.group(3))
+		if match2.group(4):
+			increment = int(match2.group(4))
 		temp = startletter +(x*increment)
 		while temp > endletter:
 			temp += startletter - endletter - 1
 		temp = str(chr(temp))
-		outputstring = str(substring[0]) + str(temp) + str(substring[1])
-	else:
-		print('not able to find valid letter for processing')
-		return
-	print(outputstring)
-	return
+		line = re.sub('(\(([a-zA-Z])+-([a-zA-Z])+,?(\d+)?\))', str(temp), str(line), count=1)
+	return line
 def l2vpn():
 	###__author__     = "Sam Milstead"
 	###__copyright__  = "Copyright 2022 (C) Cisco TAC"
