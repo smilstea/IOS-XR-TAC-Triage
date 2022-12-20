@@ -3,7 +3,7 @@
 __author__     = "Sam Milstead"
 __copyright__  = "Copyright 2022 (C) Cisco TAC"
 __credits__    = "Sam Milstead"
-__version__    = "1.0.1"
+__version__    = "1.0.3"
 __maintainer__ = "Sam Milstead"
 __email__      = "smilstea@cisco.com"
 __status__     = "alpha"
@@ -17,7 +17,7 @@ import re
 def task():
 	###__author__     = "Sam Milstead"
 	###__copyright__  = "Copyright 2022 (C) Cisco TAC"
-	###__version__    = "1.0.1"
+	###__version__    = "1.0.3"
 	###__status__     = "alpha"
 	###command line handling, OS / file handling, SSH/telnet calls
 	key = 1
@@ -25,6 +25,7 @@ def task():
 	ssh = False
 	memcompare = False
 	config = False
+	kb = False
 	file = ''
 	ipv4_addr = ''
 	username = ''
@@ -71,6 +72,11 @@ def task():
 			del sys.argv[index]
 			break
 	for index, arg in enumerate(sys.argv):
+		if arg in ['--kb']:
+			kb = True
+			del sys.argv[index]
+			break
+	for index, arg in enumerate(sys.argv):
 		if arg in ['--pre'] and len(sys.argv) > index + 1:
 			pre_file = str(sys.argv[index + 1])
 			del sys.argv[index]
@@ -85,7 +91,7 @@ def task():
 	for index, arg in enumerate(sys.argv):
 		if arg in ['--help', '-h']:
 			print("Usage: python3 {" + sys.argv[0] + "} [--file <filename>][--ipv4addr <ipv4 address>][--username <username>](--ssh)(--timeout <seconds>)")
-			print("Usage: python3 {" + sys.argv[0] + "} [--memcompare][--pre <filename>][--post <filename>]")
+			print("Usage: python3 {" + sys.argv[0] + "} [--memcompare][--pre <filename>][--post <filename>](--kb)")
 			print("Usage: python3 {" + sys.argv[0] + "} [--config][--file <filename>]")
 			print("\n")
 			print("""Current Working Modules:
@@ -119,7 +125,7 @@ Work In Progress:
 	if is_error:
 		print(str(sys.argv))
 		print("Usage: python3 {" + sys.argv[0] + "} [--file <filename>][--ipv4addr <ipv4 address>][--username <username>](--ssh)(--timeout <seconds>)")
-		print("Usage: python3 {" + sys.argv[0] + "} [--memcompare][--pre <filename>][--post <filename>]")
+		print("Usage: python3 {" + sys.argv[0] + "} [--memcompare][--pre <filename>][--post <filename>] (--kb)")
 		print("Usage: python3 {" + sys.argv[0] + "} [--config][--file <filename>]")
 		print("\n")
 		print("""Current Working Modules:
@@ -176,7 +182,7 @@ Work In Progress:
 				return
 			if not timeout:
 				print("Timeout of command gathering set to default of 10s")
-				timeout = 10
+				timeout = 5
 			else:
 				if timeout < 1:
 					print("Invalid timeout, enter '1' or greater")
@@ -185,15 +191,28 @@ Work In Progress:
 	if memcompare == True:
 		option = input("Which type of XR OS are you using?\n" +
 		"1 cXR/32-bit\n" + "2 eXR/XR7/64-bit\n" + "Please enter number: ")
-		if option == '1':
-			print("Memory comparison results if any with difference +1M or higher or a new/deleted PC address:")
-			memoryheapcomparisoncxr(pre_file, post_file)
-		elif option == '2':
-			print("Memory comparison results if any with difference +1M or higher or a new/deleted PC address:")
-			memoryheapcomparisonexr(pre_file, post_file)
+		if kb == True:
+			division = 1024
+			if option == '1':
+				print("Memory comparison results if any with difference +1KB or higher or a new/deleted PC address:")
+				memoryheapcomparisoncxr(pre_file, post_file, division)
+			elif option == '2':
+				print("Memory comparison results if any with difference +1KB or higher or a new/deleted PC address:")
+				memoryheapcomparisonexr(pre_file, post_file, division)
+			else:
+				print("Please enter a valid option")
+				return
 		else:
-			print("Please enter a valid option")
-			return
+			division = 1024*1024
+			if option == '1':
+				print("Memory comparison results if any with difference +1M or higher or a new/deleted PC address:")
+				memoryheapcomparisoncxr(pre_file, post_file, division)
+			elif option == '2':
+				print("Memory comparison results if any with difference +1M or higher or a new/deleted PC address:")
+				memoryheapcomparisonexr(pre_file, post_file, division)
+			else:
+				print("Please enter a valid option")
+				return
 		return
 	if config == True:
 		Scale_Configurator(file)
@@ -230,14 +249,14 @@ Work In Progress:
 def sshconnect(ipv4_addr, username, password, outfile, timeout):
 	###__author__     = "Sam Milstead"
 	###__copyright__  = "Copyright 2022 (C) Cisco TAC"
-	###__version__    = "1.0.0"
+	###__version__    = "1.0.3"
 	###__status__     = "alpha"
 	#ssh login and actions
 	job_id = ''
 	process_high_cpu = []
 	job_id_list = []
-	connection = pexpect.spawn('ssh %s@%s' % (username, ipv4_addr), timeout=300, maxread=1)
-	i = connection.expect (['Permission denied|permission denied', 'Terminal type|terminal type', pexpect.EOF, pexpect.TIMEOUT,'connection closed by remote host', 'continue connecting (yes/no)?', 'assword:', 'Authentication failed'],  timeout=30)
+	connection = pexpect.spawn('ssh %s@%s' % (username, ipv4_addr), timeout=30, maxread=1)
+	i = connection.expect (['ermission denied', 'erminal type', pexpect.EOF, pexpect.TIMEOUT,'connection closed by remote host', 'continue connecting (yes/no)?', 'assword:', 'Authentication failed'],  timeout=30)
 	if i == 0:
 		print("permission denied")
 		sys.exit(3)
@@ -516,19 +535,19 @@ def sshconnect(ipv4_addr, username, password, outfile, timeout):
 def telnetconnect(ipv4_addr, username, password, outfile, timeout):
 	###__author__     = "Sam Milstead"
 	###__copyright__  = "Copyright 2022 (C) Cisco TAC"
-	###__version__    = "1.0.0"
+	###__version__    = "1.0.3"
 	###__status__     = "alpha"
 	#telnet login and actions
 	job_id = ''
 	process_high_cpu = []
 	job_id_list = []
-	connection = pexpect.spawn('telnet ' + ipv4_addr, timeout=300, maxread=1)
+	connection = pexpect.spawn('telnet ' + ipv4_addr, timeout=30, maxread=1)
 	connection.expect('Username:')
 	connection.sendline(username)
 	connection.expect('assword:')
 	connection.sendline(password)
-	i = connection.expect(['Username:', r'RP\S+#'])
-	if i == 0:
+	i = connection.expect(['Username:', r'RP\S+#', 'assword:'])
+	if i == 0 or i == 2:
 		print("permission denied")
 		sys.exit(3)
 	connection.sendline(b"term len 0")
@@ -849,10 +868,10 @@ def get_changes(the_diffs, my_set, my_set2 = None):
 			except Exception as e:
 				diff_info.append(str(my_set2[entry]) + " ")
 	return diff_info
-def memoryheapcomparisoncxr(pre_file, post_file):
+def memoryheapcomparisoncxr(pre_file, post_file, division):
 	###__author__     = "Sam Milstead"
 	###__copyright__  = "Copyright 2022 (C) Cisco TAC"
-	###__version__    = "1.0.1"
+	###__version__    = "1.0.3"
 	###__status__     = "maintenance"
 	#calculate any memory changes 1M+ in cXR
 	regexp = re.compile(r"(0x[\da-f]+)\s(0x[\da-f]+)\s(0x[\da-f]+)\s(.*)")
@@ -861,15 +880,15 @@ def memoryheapcomparisoncxr(pre_file, post_file):
 		for line in f:
 			match = regexp.match(line)
 			if match:
-				dict1[match.group(4)] = int(match.group(2), 16) // (1024*1024)
+				dict1[match.group(4)] = int(match.group(2), 16) // (division)
 	dict2 = {}
 	with open(post_file) as f:
 		for line in f:
 			match = regexp.match(line)
 			if match:
-				dict2[match.group(4)] = int(match.group(2), 16) // (1024*1024)
+				dict2[match.group(4)] = int(match.group(2), 16) // (division)
 	the_diffs = DictDiffer(dict2, dict1)
-	print("PC Address and Fuction Name                   Size in MB\n")
+	print("PC Address and Fuction Name                   Size\n")
 	print('\nThe following items were added:\n')
 	added = (get_changes(the_diffs.added(), dict2))
 	j =0
@@ -901,10 +920,10 @@ def memoryheapcomparisoncxr(pre_file, post_file):
 			j = 1
 			temp = i
 	return
-def memoryheapcomparisonexr(pre_file, post_file):
+def memoryheapcomparisonexr(pre_file, post_file, division):
 	###__author__     = "Sam Milstead"
 	###__copyright__  = "Copyright 2022 (C) Cisco TAC"
-	###__version__    = "1.0.1"
+	###__version__    = "1.0.3"
 	###__status__     = "maintenance"
 	#calculate any memory changes 1M+ in eXR/XR7
 	regexp = re.compile(r"(0x[\da-f]+)\s+(\d+)\s+(\d+)\s(.*)")
@@ -913,15 +932,15 @@ def memoryheapcomparisonexr(pre_file, post_file):
 		for line in f:
 			match = regexp.match(line)
 			if match:
-				dict1[match.group(1) + ' ' + match.group(4)] = int(match.group(3)) // (1024 * 1024)
+				dict1[match.group(1) + ' ' + match.group(4)] = int(match.group(3)) // (division)
 	dict2 = {}
 	with open(post_file) as f:
 		for line in f:
 			match = regexp.match(line)
 			if match:
-				dict2[match.group(1) + ' ' + match.group(4)] = int(match.group(3)) // (1024 * 1024)
+				dict2[match.group(1) + ' ' + match.group(4)] = int(match.group(3)) // (division)
 	the_diffs = DictDiffer(dict2, dict1)
-	print("PC Address and Fuction Name                   Size in MB\n")
+	print("PC Address and Fuction Name                   Size\n")
 	print('\nThe following items were added:\n')
 	added = (get_changes(the_diffs.added(), dict2))
 	j =0
@@ -956,8 +975,8 @@ def memoryheapcomparisonexr(pre_file, post_file):
 def Scale_Configurator(file):
 	###__author__     = "Sam Milstead"
 	###__copyright__  = "Copyright 2022 (C) Cisco TAC"
-	###__version__    = "1.0.2"
-	###__status__     = "alpha"
+	###__version__    = "1.0.3"
+	###__status__     = "maintenance"
 	#generate configuration file
 	"""This script is designed to generate scale configurations.
 		
@@ -1022,32 +1041,9 @@ def Scale_Configurator(file):
 def parse(textarea, timestorun):
 	###__author__     = "Sam Milstead"
 	###__copyright__  = "Copyright 2022 (C) Cisco TAC"
-	###__version__    = "1.0.2"
-	###__status__     = "alpha"
-	"""
-		Create the finaloutput list, parse line by line for the number of times specified
-		and return final output
-				##################################################
-				#initalsplit is used to split the string into two#
-				#list values before the '[' and after '['        #
-				##################################################
-					##############################################
-					#From the second part of this array we set   #
-					#bracketsandend to give us the value inside  #
-					#the []s and then the outer string as [1]    #
-					##############################################
-						###################################################
-						#Next we need to do one more split. This allows us#
-						#to get the value before the - and the value after#
-						###################################################
-							#########################################################
-							#Finally we check if there is a ',' and split this again#
-							#so that bracket[1] is changed to increment[0] for      #
-							#the end value and increment[1] for the x value         #
-							#########################################################
-	"""
+	###__version__    = "1.0.3"
+	###__status__     = "maintenance"
 	x = 0
-	# This is where all the magic happens
 	while (x < timestorun):
 		# Parse line by line
 		for line in textarea.split("\n"):
@@ -1064,8 +1060,8 @@ def parse(textarea, timestorun):
 def parse_numbers(line, x):
 	###__author__     = "Sam Milstead"
 	###__copyright__  = "Copyright 2022 (C) Cisco TAC"
-	###__version__    = "1.0.2"
-	###__status__     = "alpha"
+	###__version__    = "1.0.3"
+	###__status__     = "maintenance"
 	"""
 	This is for incrementing base 10
 	"""
@@ -1084,8 +1080,8 @@ def parse_numbers(line, x):
 def parse_hex(line, x):
 	###__author__     = "Sam Milstead"
 	###__copyright__  = "Copyright 2022 (C) Cisco TAC"
-	###__version__    = "1.0.2"
-	###__status__     = "alpha"
+	###__version__    = "1.0.3"
+	###__status__     = "maintenance"
 	"""
 	This is for incrementing in hex
 	"""
@@ -1107,8 +1103,8 @@ def parse_hex(line, x):
 def parse_letters(line, x):
 	###__author__     = "Sam Milstead"
 	###__copyright__  = "Copyright 2022 (C) Cisco TAC"
-	###__version__    = "1.0.2"
-	###__status__     = "alpha"
+	###__version__    = "1.0.3"
+	###__status__     = "maintenance"
 	"""
 	This is for incrementing letters, we must use the ASCII
 	representation to do this
