@@ -3,11 +3,11 @@
 The IOS XR Tac Triage set of scripts are an offbox utility written in python 3.x to automate triage and log collection for specific use cases. With minimal inputs from the user specific helpful information can be gleaned for consumption by the user or uploaded to TAC for further triage.
 <br><br>
 No installation is required or compiling of the scripts, only requirement is python 3 with following libraries:
-	- pexpect
-	- os
-	- sys
-	- getpass
-	- re
+- pexpect
+- os
+- sys
+- getpass
+- re
 
 <br>
 <br>
