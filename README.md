@@ -30,7 +30,7 @@ To call the script make sure their permissions are set to executable then call t
   
 	Some commands pause mid-way through output
   
-	General delay in getting data output This allows for the collection of outputs properly as they are generated and a pause in case a command does not output immediately, pauses, or python catches up to the end of the available data Using this keyword and changing the timeout is NOT recommended. The downside is that after a command stops outputing data there will be a 5s delay before executing the next command, with 30 or 40 commands that means 150 or 200 extra seconds.
+	General delay in getting data output This allows for the collection of outputs properly as they are generated and a pause in case a command does not output immediately, pauses, or python catches up to the end of the available data Using this keyword and changing the timeout is NOT recommended.
 
 <br/>
 <br/>
