@@ -3,7 +3,7 @@
 __author__     = "Sam Milstead"
 __copyright__  = "Copyright 2022 (C) Cisco TAC"
 __credits__    = "Sam Milstead"
-__version__    = "1.0.3"
+__version__    = "1.0.4"
 __maintainer__ = "Sam Milstead"
 __email__      = "smilstea@cisco.com"
 __status__     = "alpha"
@@ -17,7 +17,7 @@ import re
 def task():
 	###__author__     = "Sam Milstead"
 	###__copyright__  = "Copyright 2022 (C) Cisco TAC"
-	###__version__    = "1.0.3"
+	###__version__    = "1.0.4"
 	###__status__     = "alpha"
 	###command line handling, OS / file handling, SSH/telnet calls
 	key = 1
@@ -182,7 +182,7 @@ Work In Progress:
 				return
 			if not timeout:
 				print("Timeout of command gathering set to default of 10s")
-				timeout = 5
+				timeout = 10
 			else:
 				if timeout < 1:
 					print("Invalid timeout, enter '1' or greater")
@@ -249,7 +249,7 @@ Work In Progress:
 def sshconnect(ipv4_addr, username, password, outfile, timeout):
 	###__author__     = "Sam Milstead"
 	###__copyright__  = "Copyright 2022 (C) Cisco TAC"
-	###__version__    = "1.0.3"
+	###__version__    = "1.0.4"
 	###__status__     = "alpha"
 	#ssh login and actions
 	job_id = ''
@@ -326,14 +326,14 @@ def sshconnect(ipv4_addr, username, password, outfile, timeout):
 	print("Beginning stage 1 data collection")
 	for command in commands:
 		i += 1
-		connection.sendline(command.encode('utf-8'))
+		connection.sendline(command.encode('utf-8', 'ignore'))
 		data = ""
-		n = 1
-		while n == 1:
-			try:
-				data += connection.read_nonblocking(size=999,timeout=timeout).decode('utf-8', 'ignore')
-			except pexpect.exceptions.TIMEOUT:
-				n = 0
+		connection.expect(r'RP\S+#', timeout=timeout)
+		data = connection.before.decode('utf-8', 'ignore')
+		outfile.write(data)
+		data = connection.after.decode('utf-8', 'ignore')
+		outfile.write(data)
+		print("Command " + str(i) + " of " + str(commands_len) + " complete")
 		if option == '4':
 			if 'show process' in command:
 				regex_string = re.compile('Job Id: (\d+)')
@@ -348,8 +348,6 @@ def sshconnect(ipv4_addr, username, password, outfile, timeout):
 					match = regex_string.search(line)
 					if match:
 						process_high_cpu.append(line)
-		outfile.write(data)
-		print("Command " + str(i) + " of " + str(commands_len) + " complete")
 	i = 0
 	outfile.seek(0, 0)	
 	pre_commands = {}
@@ -391,12 +389,10 @@ def sshconnect(ipv4_addr, username, password, outfile, timeout):
 				i += 1
 				connection.sendline(command.encode('utf-8', 'ignore'))
 				data = ""
-				n = 1
-				while n == 1:
-					try:
-						data += connection.read_nonblocking(size=999,timeout=timeout).decode('utf-8', 'ignore')
-					except pexpect.exceptions.TIMEOUT:
-						n = 0
+				connection.expect(r'RP\S+#', timeout=timeout)
+				data = connection.before.decode('utf-8', 'ignore')
+				outfile.write(data)
+				data = connection.after.decode('utf-8', 'ignore')
 				outfile.write(data)
 				print("Command " + str(i) + " of " + str(commands_len) + " complete")
 			i = 0
@@ -445,19 +441,17 @@ def sshconnect(ipv4_addr, username, password, outfile, timeout):
 				i += 1
 				connection.sendline(command.encode('utf-8', 'ignore'))
 				data = ""
-				n = 1
-				while n == 1:
-					try:
-						data += connection.read_nonblocking(size=999,timeout=timeout).decode('utf-8', 'ignore')
-					except pexpect.exceptions.TIMEOUT:
-						n = 0
+				connection.expect(r'RP\S+#', timeout=timeout)
+				data = connection.before.decode('utf-8', 'ignore')
+				outfile.write(data)
+				data = connection.after.decode('utf-8', 'ignore')
+				outfile.write(data)
+				print("Command " + str(i) + " of " + str(commands_len) + " complete")
 				if 'show process' in command:
 					regex_string = re.compile('Job Id: (\d+)')
 					match = regex_string.search(data)
 					if match:
 						job_id_list.append(str(match.group(1)))
-				outfile.write(data)
-				print("Command " + str(i) + " of " + str(commands_len) + " complete")
 			i = 0
 			outfile.seek(0, 0)	
 			pre_commands = {}
@@ -497,12 +491,10 @@ def sshconnect(ipv4_addr, username, password, outfile, timeout):
 				i += 1
 				connection.sendline(command.encode('utf-8', 'ignore'))
 				data = ""
-				n = 1
-				while n == 1:
-					try:
-						data += connection.read_nonblocking(size=999,timeout=timeout).decode('utf-8', 'ignore')
-					except pexpect.exceptions.TIMEOUT:
-						n = 0
+				connection.expect(r'RP\S+#', timeout=timeout)
+				data = connection.before.decode('utf-8', 'ignore')
+				outfile.write(data)
+				data = connection.after.decode('utf-8', 'ignore')
 				outfile.write(data)
 				print("Command " + str(i) + " of " + str(commands_len) + " complete")
 			i = 0
@@ -535,7 +527,7 @@ def sshconnect(ipv4_addr, username, password, outfile, timeout):
 def telnetconnect(ipv4_addr, username, password, outfile, timeout):
 	###__author__     = "Sam Milstead"
 	###__copyright__  = "Copyright 2022 (C) Cisco TAC"
-	###__version__    = "1.0.3"
+	###__version__    = "1.0.4"
 	###__status__     = "alpha"
 	#telnet login and actions
 	job_id = ''
@@ -594,14 +586,14 @@ def telnetconnect(ipv4_addr, username, password, outfile, timeout):
 	print("Beginning stage 1 data collection")
 	for command in commands:
 		i += 1
-		connection.sendline(command.encode('utf-8'))
+		connection.sendline(command.encode('utf-8', 'ignore'))
 		data = ""
-		n = 1
-		while n == 1:
-			try:
-				data += connection.read_nonblocking(size=999,timeout=timeout).decode('utf-8', 'ignore')
-			except pexpect.exceptions.TIMEOUT:
-				n = 0
+		connection.expect(r'RP\S+#', timeout=timeout)
+		data = connection.before.decode('utf-8', 'ignore')
+		outfile.write(data)
+		data = connection.after.decode('utf-8', 'ignore')
+		outfile.write(data)
+		print("Command " + str(i) + " of " + str(commands_len) + " complete")
 		if option == '4':
 			if 'show process' in command:
 				regex_string = re.compile('Job Id: (\d+)')
@@ -616,8 +608,6 @@ def telnetconnect(ipv4_addr, username, password, outfile, timeout):
 					match = regex_string.search(line)
 					if match:
 						process_high_cpu.append(line)
-		outfile.write(data)
-		print("Command " + str(i) + " of " + str(commands_len) + " complete")
 	i = 0
 	outfile.seek(0, 0)	
 	pre_commands = {}
@@ -659,12 +649,10 @@ def telnetconnect(ipv4_addr, username, password, outfile, timeout):
 				i += 1
 				connection.sendline(command.encode('utf-8', 'ignore'))
 				data = ""
-				n = 1
-				while n == 1:
-					try:
-						data += connection.read_nonblocking(size=999,timeout=timeout).decode('utf-8', 'ignore')
-					except pexpect.exceptions.TIMEOUT:
-						n = 0
+				connection.expect(r'RP\S+#', timeout=timeout)
+				data = connection.before.decode('utf-8', 'ignore')
+				outfile.write(data)
+				data = connection.after.decode('utf-8', 'ignore')
 				outfile.write(data)
 				print("Command " + str(i) + " of " + str(commands_len) + " complete")
 			i = 0
@@ -713,19 +701,17 @@ def telnetconnect(ipv4_addr, username, password, outfile, timeout):
 				i += 1
 				connection.sendline(command.encode('utf-8', 'ignore'))
 				data = ""
-				n = 1
-				while n == 1:
-					try:
-						data += connection.read_nonblocking(size=999,timeout=timeout).decode('utf-8', 'ignore')
-					except pexpect.exceptions.TIMEOUT:
-						n = 0
+				connection.expect(r'RP\S+#', timeout=timeout)
+				data = connection.before.decode('utf-8', 'ignore')
+				outfile.write(data)
+				data = connection.after.decode('utf-8', 'ignore')
+				outfile.write(data)
+				print("Command " + str(i) + " of " + str(commands_len) + " complete")
 				if 'show process' in command:
 					regex_string = re.compile('Job Id: (\d+)')
 					match = regex_string.search(data)
 					if match:
 						job_id_list.append(str(match.group(1)))
-				outfile.write(data)
-				print("Command " + str(i) + " of " + str(commands_len) + " complete")
 			i = 0
 			outfile.seek(0, 0)	
 			pre_commands = {}
@@ -765,12 +751,10 @@ def telnetconnect(ipv4_addr, username, password, outfile, timeout):
 				i += 1
 				connection.sendline(command.encode('utf-8', 'ignore'))
 				data = ""
-				n = 1
-				while n == 1:
-					try:
-						data += connection.read_nonblocking(size=999,timeout=timeout).decode('utf-8', 'ignore')
-					except pexpect.exceptions.TIMEOUT:
-						n = 0
+				connection.expect(r'RP\S+#', timeout=timeout)
+				data = connection.before.decode('utf-8', 'ignore')
+				outfile.write(data)
+				data = connection.after.decode('utf-8', 'ignore')
 				outfile.write(data)
 				print("Command " + str(i) + " of " + str(commands_len) + " complete")
 			i = 0
