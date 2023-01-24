@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
 __author__     = "Sam Milstead"
-__copyright__  = "Copyright 2022 (C) Cisco TAC"
+__copyright__  = "Copyright 2022-2023 (C) Cisco TAC"
 __credits__    = "Sam Milstead"
-__version__    = "1.0.4"
+__version__    = "1.0.5"
 __maintainer__ = "Sam Milstead"
 __email__      = "smilstea@cisco.com"
 __status__     = "alpha"
@@ -1063,8 +1063,8 @@ def parse_numbers(line, x):
 	return line
 def parse_hex(line, x):
 	###__author__     = "Sam Milstead"
-	###__copyright__  = "Copyright 2022 (C) Cisco TAC"
-	###__version__    = "1.0.3"
+	###__copyright__  = "Copyright 2022-2023 (C) Cisco TAC"
+	###__version__    = "1.0.5"
 	###__status__     = "maintenance"
 	"""
 	This is for incrementing in hex
@@ -1073,7 +1073,7 @@ def parse_hex(line, x):
 	regex_hex = re.compile('\{[0-9a-fA-F]+-[0-9a-fA-F]+,?\d+?\}')
 	match = re.findall(regex_hex, line)
 	for i in match:
-		match2 = re.search(r'(\{([0-9a-fA-F])+-([0-9a-fA-F])+,?(\d+)?\})', line)
+		match2 = re.search(r'(\{([0-9a-fA-F]+)-([0-9a-fA-F]+),?(\d+)?\})', line)
 		if match2.group(4):
 			increment = int(match2.group(4))
 		starthex = int(match2.group(2), 16)
@@ -1082,12 +1082,12 @@ def parse_hex(line, x):
 		while temp > endhex:
 			temp += starthex - endhex - 1
 		temp = '{:X}'.format(temp)
-		line = re.sub('(\{([0-9a-fA-F])+-([0-9a-fA-F])+,?(\d+)?\})', str(temp), str(line), count=1)
+		line = re.sub('(\{([0-9a-fA-F]+)-([0-9a-fA-F]+),?(\d+)?\})', str(temp), str(line), count=1)
 	return line
 def parse_letters(line, x):
 	###__author__     = "Sam Milstead"
-	###__copyright__  = "Copyright 2022 (C) Cisco TAC"
-	###__version__    = "1.0.3"
+	###__copyright__  = "Copyright 2022-2023 (C) Cisco TAC"
+	###__version__    = "1.0.5"
 	###__status__     = "maintenance"
 	"""
 	This is for incrementing letters, we must use the ASCII
@@ -1097,7 +1097,7 @@ def parse_letters(line, x):
 	regex_letter = re.compile('\([a-zA-Z]+-[a-zA-Z]+,?\d+?\)')
 	match = re.findall(regex_letter, line)
 	for i in match:
-		match2 = re.search(r'(\(([a-zA-Z])+-([a-zA-Z])+,?(\d+)?\))', line)
+		match2 = re.search(r'(\(([a-zA-Z]+)-([a-zA-Z]+),?(\d+)?\))', line)
 		startletter = ord(match2.group(2))
 		endletter = ord(match2.group(3))
 		if match2.group(4):
@@ -1106,7 +1106,7 @@ def parse_letters(line, x):
 		while temp > endletter:
 			temp += startletter - endletter - 1
 		temp = str(chr(temp))
-		line = re.sub('(\(([a-zA-Z])+-([a-zA-Z])+,?(\d+)?\))', str(temp), str(line), count=1)
+		line = re.sub('(\(([a-zA-Z]+)-([a-zA-Z]+),?(\d+)?\))', str(temp), str(line), count=1)
 	return line
 def l2vpn():
 	###__author__     = "Sam Milstead"
