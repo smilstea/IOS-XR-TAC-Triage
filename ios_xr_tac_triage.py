@@ -3,7 +3,7 @@
 __author__     = "Sam Milstead"
 __copyright__  = "Copyright 2022-2023 (C) Cisco TAC"
 __credits__    = "Sam Milstead"
-__version__    = "1.0.5"
+__version__    = "1.0.6"
 __maintainer__ = "Sam Milstead"
 __email__      = "smilstea@cisco.com"
 __status__     = "alpha"
@@ -17,7 +17,7 @@ import re
 def task():
 	###__author__     = "Sam Milstead"
 	###__copyright__  = "Copyright 2022 (C) Cisco TAC"
-	###__version__    = "1.0.4"
+	###__version__    = "1.0.6"
 	###__status__     = "alpha"
 	###command line handling, OS / file handling, SSH/telnet calls
 	key = 1
@@ -26,6 +26,7 @@ def task():
 	memcompare = False
 	config = False
 	kb = False
+	byte = False
 	file = ''
 	ipv4_addr = ''
 	username = ''
@@ -77,6 +78,11 @@ def task():
 			del sys.argv[index]
 			break
 	for index, arg in enumerate(sys.argv):
+		if arg in ['--byte']:
+			byte = True
+			del sys.argv[index]
+			break
+	for index, arg in enumerate(sys.argv):
 		if arg in ['--pre'] and len(sys.argv) > index + 1:
 			pre_file = str(sys.argv[index + 1])
 			del sys.argv[index]
@@ -91,7 +97,7 @@ def task():
 	for index, arg in enumerate(sys.argv):
 		if arg in ['--help', '-h']:
 			print("Usage: python3 {" + sys.argv[0] + "} [--file <filename>][--ipv4addr <ipv4 address>][--username <username>](--ssh)(--timeout <seconds>)")
-			print("Usage: python3 {" + sys.argv[0] + "} [--memcompare][--pre <filename>][--post <filename>](--kb)")
+			print("Usage: python3 {" + sys.argv[0] + "} [--memcompare][--pre <filename>][--post <filename>](--kb)(--byte)")
 			print("Usage: python3 {" + sys.argv[0] + "} [--config][--file <filename>]")
 			print("\n")
 			print("""Current Working Modules:
@@ -125,7 +131,7 @@ Work In Progress:
 	if is_error:
 		print(str(sys.argv))
 		print("Usage: python3 {" + sys.argv[0] + "} [--file <filename>][--ipv4addr <ipv4 address>][--username <username>](--ssh)(--timeout <seconds>)")
-		print("Usage: python3 {" + sys.argv[0] + "} [--memcompare][--pre <filename>][--post <filename>] (--kb)")
+		print("Usage: python3 {" + sys.argv[0] + "} [--memcompare][--pre <filename>][--post <filename>] (--kb)(--byte)")
 		print("Usage: python3 {" + sys.argv[0] + "} [--config][--file <filename>]")
 		print("\n")
 		print("""Current Working Modules:
@@ -198,6 +204,17 @@ Work In Progress:
 				memoryheapcomparisoncxr(pre_file, post_file, division)
 			elif option == '2':
 				print("Memory comparison results if any with difference +1KB or higher or a new/deleted PC address:")
+				memoryheapcomparisonexr(pre_file, post_file, division)
+			else:
+				print("Please enter a valid option")
+				return
+		elif bye == True:
+			division = 1
+			if option == '1':
+				print("Memory comparison results if any with difference +1B or higher or a new/deleted PC address:")
+				memoryheapcomparisoncxr(pre_file, post_file, division)
+			elif option == '2':
+				print("Memory comparison results if any with difference +1B or higher or a new/deleted PC address:")
 				memoryheapcomparisonexr(pre_file, post_file, division)
 			else:
 				print("Please enter a valid option")
